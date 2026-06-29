@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DocScan — Document Similarity Analyzer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,400&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --paper: #FAF8F3;
+      --paper-2: #F1EDE3;
+      --ink: #1C1B22;
+      --ink-soft: #5A5862;
+      --ink-faint: #908D98;
+      --line: rgba(28, 27, 34, 0.10);
+      --line-strong: rgba(28, 27, 34, 0.18);
+      --primary: #3D3B8E;
+      --primary-soft: rgba(61, 59, 142, 0.10);
+      --high: #B5394A;
+      --high-soft: rgba(181, 57, 74, 0.10);
+      --moderate: #C97D1E;
+      --moderate-soft: rgba(201, 125, 30, 0.12);
+      --low: #3F8554;
+      --low-soft: rgba(63, 133, 84, 0.10);
+      --surface: rgba(28, 27, 34, 0.02);
+      --shadow: 0 1px 2px rgba(28,27,34,0.04), 0 8px 24px rgba(28,27,34,0.05);
+    }
+    html.dark {
+      --paper: #16161D;
+      --paper-2: #1E1E27;
+      --ink: #EFEDF2;
+      --ink-soft: #A7A4B0;
+      --ink-faint: #6E6B78;
+      --line: rgba(255, 255, 255, 0.10);
+      --line-strong: rgba(255, 255, 255, 0.18);
+      --primary: #9D9BF0;
+      --primary-soft: rgba(157, 155, 240, 0.14);
+      --high: #E0697A;
+      --high-soft: rgba(224, 105, 122, 0.14);
+      --moderate: #E8A33D;
+      --moderate-soft: rgba(232, 163, 61, 0.14);
+      --low: #5FB57C;
+      --low-soft: rgba(95, 181, 124, 0.14);
+      --surface: rgba(255, 255, 255, 0.03);
+      --shadow: 0 1px 2px rgba(0,0,0,0.2), 0 12px 32px rgba(0,0,0,0.3);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--paper);
+      color: var(--ink);
+      min-height: 100vh;
+      transition: background 0.4s ease, color 0.4s ease;
+      -webkit-font-smoothing: antialiased;
+      line-height: 1.5;
+    }
+    .mono { font-family: 'JetBrains Mono', monospace; }
+    .serif { font-family: 'Fraunces', serif; }
+
+    .wrap { max-width: 920px; margin: 0 auto; padding: 0 24px; }
+
+    /* Header */
+    header {
+      position: sticky; top: 0; z-index: 50;
+      backdrop-filter: blur(12px);
+      background: color-mix(in srgb, var(--paper) 82%, transparent);
+      border-bottom: 1px solid var(--line);
+    }
+    .header-inner { display: flex; align-items: center; justify-content: space-between; padding: 16px 0; }
+    .brand { display: flex; align-items: baseline; gap: 10px; }
+    .brand-mark {
+      font-family: 'Fraunces', serif; font-weight: 700; font-size: 22px;
+      letter-spacing: -0.02em; color: var(--ink);
+    }
+    .brand-mark span { color: var(--primary); }
+    .brand-tag { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--ink-faint); display: none; }
+    @media (min-width: 600px) { .brand-tag { display: block; } }
+
+    /* Theme toggle */
+    .theme-toggle {
+      width: 44px; height: 44px; border-radius: 12px;
+      border: 1px solid var(--line-strong); background: transparent;
+      color: var(--ink); cursor: pointer; display: flex;
+      align-items: center; justify-content: center;
+      transition: background 0.2s, border-color 0.2s, transform 0.2s;
+    }
+    .theme-toggle:hover { background: var(--surface); border-color: var(--primary); }
+    .theme-toggle:active { transform: scale(0.93); }
+    .theme-toggle svg { width: 19px; height: 19px; transition: transform 0.4s cubic-bezier(0.34,1.56,0.64,1); }
+    .theme-toggle:hover svg { transform: rotate(35deg); }
+    html.dark .icon-sun { display: block; }
+    html.dark .icon-moon { display: none; }
+    .icon-sun { display: none; }
+    .icon-moon { display: block; }
+
+    /* Hero */
+    .hero { padding: 72px 0 40px; }
+    .eyebrow {
+      font-family: 'JetBrains Mono', monospace; font-size: 12px;
+      letter-spacing: 0.16em; text-transform: uppercase;
+      color: var(--primary); margin-bottom: 20px;
+    }
+    .hero h1 {
+      font-family: 'Fraunces', serif; font-weight: 600;
+      font-size: clamp(40px, 7vw, 68px); line-height: 1.02;
+      letter-spacing: -0.025em; margin-bottom: 22px;
+    }
+    .hero h1 em { font-style: italic; color: var(--primary); }
+    .hero p { color: var(--ink-soft); font-size: 16px; max-width: 30em; }
+    .hero code {
+      font-family: 'JetBrains Mono', monospace; font-size: 0.85em;
+      background: var(--primary-soft); color: var(--primary);
+      padding: 2px 7px; border-radius: 5px;
+    }
+
+    /* Drop zone */
+    .drop-zone {
+      border: 1.5px dashed var(--line-strong); border-radius: 18px;
+      padding: 48px 24px; text-align: center; cursor: pointer;
+      transition: border-color 0.2s, background 0.2s; position: relative;
+    }
+    .drop-zone:hover, .drop-zone.dragover { border-color: var(--primary); background: var(--primary-soft); }
+    .drop-icon {
+      width: 56px; height: 56px; border-radius: 16px; margin: 0 auto 16px;
+      background: var(--primary-soft); color: var(--primary);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .drop-icon svg { width: 28px; height: 28px; }
+    .drop-zone .label { font-weight: 500; color: var(--ink); margin-bottom: 4px; }
+    .drop-zone .hint { font-size: 13px; color: var(--ink-faint); }
+
+    /* File chips */
+    .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+    .chip {
+      display: flex; align-items: center; gap: 8px;
+      padding: 7px 12px; background: var(--surface);
+      border: 1px solid var(--line); border-radius: 10px;
+      font-family: 'JetBrains Mono', monospace; font-size: 13px;
+    }
+    .chip svg { width: 14px; height: 14px; color: var(--primary); flex-shrink: 0; }
+    .chip .name { max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .chip .remove { background: none; border: none; color: var(--ink-faint); cursor: pointer; font-size: 14px; padding: 0 2px; transition: color 0.15s; }
+    .chip .remove:hover { color: var(--high); }
+
+    /* Controls */
+    .controls { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 28px; margin-top: 28px; }
+    .control-label { font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-faint); margin-bottom: 8px; display: block; }
+    .slider-row { display: flex; align-items: center; gap: 12px; }
+    input[type=range] { width: 140px; accent-color: var(--primary); cursor: pointer; }
+    #shingleVal { font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 15px; width: 20px; }
+
+    .btn-primary {
+      padding: 13px 26px; background: var(--primary); color: #fff;
+      font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 13px;
+      letter-spacing: 0.02em; border: none; border-radius: 11px; cursor: pointer;
+      display: flex; align-items: center; gap: 8px;
+      transition: transform 0.15s, opacity 0.2s, box-shadow 0.2s;
+      box-shadow: var(--shadow);
+    }
+    html.dark .btn-primary { color: #16161D; }
+    .btn-primary:hover:not(:disabled) { transform: translateY(-1px); }
+    .btn-primary:active:not(:disabled) { transform: scale(0.97); }
+    .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-primary svg { width: 16px; height: 16px; }
+
+    .btn-ghost {
+      padding: 11px 20px; background: transparent; color: var(--ink-soft);
+      font-family: 'JetBrains Mono', monospace; font-size: 13px;
+      border: 1px solid var(--line-strong); border-radius: 11px; cursor: pointer;
+      transition: border-color 0.2s, color 0.2s;
+    }
+    .btn-ghost:hover { border-color: var(--primary); color: var(--primary); }
+
+    /* Error */
+    .error-box {
+      margin-top: 16px; padding: 14px 16px; background: var(--high-soft);
+      border: 1px solid var(--high); border-radius: 12px;
+      color: var(--high); font-size: 14px;
+    }
+
+    /* Loader */
+    .loader { display: flex; flex-direction: column; align-items: center; gap: 18px; padding: 80px 0; }
+    .spinner {
+      width: 44px; height: 44px; border-radius: 50%;
+      border: 2.5px solid var(--primary-soft); border-top-color: var(--primary);
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loader p { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--ink-faint); }
+
+    /* Stats */
+    .stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 36px; }
+    @media (min-width: 640px) { .stats { grid-template-columns: repeat(4, 1fr); } }
+    .stat {
+      padding: 20px; background: var(--surface);
+      border: 1px solid var(--line); border-radius: 16px;
+    }
+    .stat .num { font-family: 'Fraunces', serif; font-weight: 600; font-size: 34px; line-height: 1; letter-spacing: -0.02em; }
+    .stat .lbl { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--ink-faint); margin-top: 8px; text-transform: uppercase; letter-spacing: 0.06em; }
+
+    /* Tabs */
+    .tabs { display: flex; gap: 28px; border-bottom: 1px solid var(--line); margin-bottom: 28px; }
+    .tab-btn {
+      background: none; border: none; cursor: pointer;
+      font-family: 'JetBrains Mono', monospace; font-size: 14px; font-weight: 500;
+      color: var(--ink-faint); padding: 0 0 14px; position: relative;
+      transition: color 0.2s;
+    }
+    .tab-btn:hover { color: var(--ink); }
+    .tab-btn.active { color: var(--primary); }
+    .tab-btn.active::after {
+      content: ''; position: absolute; bottom: -1px; left: 0; right: 0;
+      height: 2px; background: var(--primary); border-radius: 2px;
+    }
+    .badge { margin-left: 7px; padding: 2px 7px; background: var(--high-soft); color: var(--high); font-size: 11px; border-radius: 6px; }
+
+    .tab-content { display: flex; flex-direction: column; gap: 12px; }
+    .tab-content.hidden, .hidden { display: none; }
+
+    /* Pair card — the signature "overlap meter" */
+    .pair {
+      padding: 22px; border: 1px solid var(--line); border-radius: 16px;
+      background: var(--paper); transition: border-color 0.2s, transform 0.2s;
+    }
+    .pair:hover { border-color: var(--line-strong); }
+    .pair-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
+    .pair-docs { display: flex; align-items: center; gap: 10px; min-width: 0; }
+    .rank { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--ink-faint); flex-shrink: 0; }
+    .doc-tag {
+      font-family: 'JetBrains Mono', monospace; font-size: 12px;
+      background: var(--surface); border: 1px solid var(--line);
+      padding: 4px 9px; border-radius: 7px;
+      max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .vs { color: var(--ink-faint); font-size: 12px; flex-shrink: 0; }
+    .pair-score { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+    .score-num { font-family: 'Fraunces', serif; font-weight: 600; font-size: 26px; letter-spacing: -0.02em; }
+    .label-pill { font-family: 'JetBrains Mono', monospace; font-size: 11px; padding: 3px 9px; border-radius: 7px; border: 1px solid; }
+    .label-High { background: var(--high-soft); color: var(--high); border-color: var(--high); }
+    .label-Moderate { background: var(--moderate-soft); color: var(--moderate); border-color: var(--moderate); }
+    .label-Low { background: var(--low-soft); color: var(--low); border-color: var(--low); }
+
+    /* Overlap meter */
+    .meter { height: 8px; background: var(--surface); border-radius: 6px; overflow: hidden; margin-bottom: 12px; border: 1px solid var(--line); }
+    .meter-fill { height: 100%; width: 0%; border-radius: 6px; transition: width 0.9s cubic-bezier(0.16,1,0.3,1); }
+    .fill-High { background: var(--high); }
+    .fill-Moderate { background: var(--moderate); }
+    .fill-Low { background: var(--low); }
+    .pair-foot { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--ink-faint); }
+
+    /* Empty state */
+    .empty { padding: 48px 24px; text-align: center; }
+    .empty p { font-family: 'JetBrains Mono', monospace; color: var(--ink-faint); font-size: 14px; }
+    .empty .sub { font-size: 12px; margin-top: 8px; color: var(--ink-faint); opacity: 0.7; }
+
+    /* Table */
+    .doc-table { width: 100%; border-collapse: collapse; }
+    .doc-table th { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--ink-faint); text-transform: uppercase; letter-spacing: 0.06em; padding-bottom: 14px; text-align: right; }
+    .doc-table th:first-child { text-align: left; }
+    .doc-table td { padding: 14px 0; border-top: 1px solid var(--line); font-family: 'JetBrains Mono', monospace; font-size: 13px; text-align: right; color: var(--ink-soft); }
+    .doc-table td:first-child { text-align: left; color: var(--ink); }
+    .doc-id { display: inline-flex; width: 28px; height: 22px; align-items: center; justify-content: center; background: var(--primary-soft); color: var(--primary); font-weight: 700; font-size: 11px; border-radius: 6px; margin-right: 10px; }
+
+    /* Animations */
+    @keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+    .rise { animation: rise 0.5s cubic-bezier(0.16,1,0.3,1) both; }
+    .rise-1 { animation-delay: 0.04s; } .rise-2 { animation-delay: 0.08s; }
+    .rise-3 { animation-delay: 0.12s; } .rise-4 { animation-delay: 0.16s; } .rise-5 { animation-delay: 0.20s; }
+
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: 4px; }
+
+    :focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; border-radius: 4px; }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+    }
+
+    footer { border-top: 1px solid var(--line); margin-top: 80px; padding: 28px 0; }
+    footer p { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--ink-faint); }
+  </style>
+</head>
+
+<body>
+  <header>
+    <div class="wrap header-inner">
+      <div class="brand">
+        <span class="brand-mark">Doc<span>Scan</span></span>
+        <span class="brand-tag">similarity analyzer</span>
+      </div>
+      <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" aria-label="Toggle light and dark mode">
+        <svg class="icon-sun" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path stroke-linecap="round" d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32l1.41 1.41M2 12h2m16 0h2M4.93 19.07l1.41-1.41m11.32-11.32l1.41-1.41"/></svg>
+        <svg class="icon-moon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="hero">
+      <p class="eyebrow rise rise-1">Shingling · Jaccard similarity</p>
+      <h1 class="rise rise-2">Find where<br/>documents <em>overlap.</em></h1>
+      <p class="rise rise-3">Upload two or more <code>.txt</code> files. DocScan breaks each into overlapping word shingles, compares every pair, and ranks the matches most likely to share a source.</p>
+    </section>
+
+    <section id="uploadSection" class="rise rise-4">
+      <div id="dropZone" class="drop-zone"
+        onclick="document.getElementById('fileInput').click()"
+        ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)">
+        <input type="file" id="fileInput" multiple accept=".txt" class="hidden" onchange="handleFileSelect(event)" />
+        <div class="drop-icon">
+          <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+        </div>
+        <p class="label">Drop .txt files here, or click to browse</p>
+        <p class="hint">Minimum 2 files</p>
+      </div>
+
+      <div id="fileChips" class="chips hidden"></div>
+
+      <div class="controls">
+        <div>
+          <label class="control-label" for="shingleSlider">Shingle size</label>
+          <div class="slider-row">
+            <input type="range" id="shingleSlider" min="1" max="10" value="3"
+              oninput="document.getElementById('shingleVal').textContent = this.value" />
+            <span id="shingleVal" class="mono">3</span>
+          </div>
+        </div>
+        <button id="analyzeBtn" class="btn-primary" onclick="analyze()" disabled>
+          <svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+          Run analysis
+        </button>
+      </div>
+
+      <div id="errorBox" class="error-box hidden"></div>
+    </section>
+
+    <div id="loader" class="loader hidden">
+      <div class="spinner"></div>
+      <p>Comparing documents…</p>
+    </div>
+
+    <section id="results" class="hidden">
+      <div id="statsStrip" class="stats"></div>
+
+      <div class="tabs">
+        <button class="tab-btn active" data-tab="pairs" onclick="switchTab('pairs')">All pairs</button>
+        <button class="tab-btn" data-tab="suspicious" onclick="switchTab('suspicious')">Suspicious<span id="suspBadge" class="badge"></span></button>
+        <button class="tab-btn" data-tab="docs" onclick="switchTab('docs')">Documents</button>
+      </div>
+
+      <div id="tab-pairs" class="tab-content"></div>
+      <div id="tab-suspicious" class="tab-content hidden"></div>
+      <div id="tab-docs" class="tab-content hidden"></div>
+
+      <button class="btn-ghost" onclick="resetUI()" style="margin-top: 28px; align-self: flex-start;">← New analysis</button>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap"><p>DocScan · custom hash table, BST &amp; merge sort · Karim Dayekh</p></div>
+  </footer>
+
+  <script>
+    // ── Config ──────────────────────────────────────────────────────
+    // API base URL. Defaults to the local Flask server. When deploying,
+    // set this to your deployed backend URL (e.g. "https://your-api.onrender.com").
+    const API_BASE = "http://localhost:5000";
+
+    // ── Theme ───────────────────────────────────────────────────────
+    function toggleTheme() {
+      const isDark = document.documentElement.classList.toggle('dark');
+      try { localStorage.setItem('theme', isDark ? 'dark' : 'light'); } catch (e) {}
+    }
+    (function () {
+      let saved = null;
+      try { saved = localStorage.getItem('theme'); } catch (e) {}
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      const useDark = saved ? saved === 'dark' : prefersDark;
+      document.documentElement.classList.toggle('dark', useDark);
+    })();
+
+    // ── File handling ───────────────────────────────────────────────
+    let selectedFiles = [];
+
+    function handleDragOver(e) { e.preventDefault(); e.currentTarget.classList.add('dragover'); }
+    function handleDragLeave(e) { e.currentTarget.classList.remove('dragover'); }
+    function handleDrop(e) {
+      e.preventDefault();
+      e.currentTarget.classList.remove('dragover');
+      addFiles(Array.from(e.dataTransfer.files).filter(f => f.name.endsWith('.txt')));
+    }
+    function handleFileSelect(e) { addFiles(Array.from(e.target.files)); e.target.value = ''; }
+
+    function addFiles(files) {
+      files.forEach(f => { if (!selectedFiles.find(x => x.name === f.name)) selectedFiles.push(f); });
+      renderChips();
+    }
+    function removeFile(name) { selectedFiles = selectedFiles.filter(f => f.name !== name); renderChips(); }
+
+    function renderChips() {
+      const container = document.getElementById('fileChips');
+      const btn = document.getElementById('analyzeBtn');
+      if (selectedFiles.length === 0) { container.classList.add('hidden'); btn.disabled = true; return; }
+      container.classList.remove('hidden');
+      container.innerHTML = selectedFiles.map(f => `
+        <div class="chip">
+          <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+          <span class="name">${escapeHtml(f.name)}</span>
+          <button class="remove" onclick="removeFile('${escapeAttr(f.name)}')" aria-label="Remove ${escapeAttr(f.name)}">✕</button>
+        </div>`).join('');
+      btn.disabled = selectedFiles.length < 2;
+    }
+
+    // ── Analysis ────────────────────────────────────────────────────
+    async function analyze() {
+      hideError(); showLoader(); hideResults();
+      const formData = new FormData();
+      selectedFiles.forEach(f => formData.append('files', f));
+      formData.append('shingle_size', document.getElementById('shingleSlider').value);
+      try {
+        const res = await fetch(`${API_BASE}/api/analyze`, { method: 'POST', body: formData });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Server error');
+        hideLoader();
+        renderResults(data);
+      } catch (err) {
+        hideLoader();
+        showError(err.message === 'Failed to fetch'
+          ? 'Could not reach the server. Make sure the backend is running.'
+          : (err.message || 'Something went wrong.'));
+      }
+    }
+
+    // ── Render ──────────────────────────────────────────────────────
+    function renderResults(data) {
+      const stats = [
+        { label: 'Documents', value: data.documents.length },
+        { label: 'Pairs compared', value: data.total_pairs },
+        { label: 'Suspicious', value: data.suspicious_count },
+        { label: 'Shingle size', value: data.config.shingle_size },
+      ];
+      document.getElementById('statsStrip').innerHTML = stats.map((s, i) => `
+        <div class="stat rise rise-${i + 1}">
+          <div class="num">${s.value}</div>
+          <div class="lbl">${s.label}</div>
+        </div>`).join('');
+
+      document.getElementById('suspBadge').textContent = data.suspicious_count;
+
+      document.getElementById('tab-pairs').innerHTML = data.ranked_pairs.length === 0
+        ? emptyState('No pairs to compare.')
+        : data.ranked_pairs.map((p, i) => pairCard(p, i)).join('');
+
+      document.getElementById('tab-suspicious').innerHTML = data.suspicious_pairs.length === 0
+        ? emptyState('No suspicious pairs found.', `High ≥ ${data.config.high_threshold}% · Moderate ≥ ${data.config.moderate_threshold}%`)
+        : data.suspicious_pairs.map((p, i) => pairCard(p, i)).join('');
+
+      document.getElementById('tab-docs').innerHTML = `
+        <div style="overflow-x:auto;">
+          <table class="doc-table">
+            <thead><tr>
+              <th>File</th><th>Words</th><th>Unique words</th><th>Unique shingles</th>
+            </tr></thead>
+            <tbody>
+              ${data.documents.map((d, i) => `
+                <tr class="rise rise-${Math.min(i + 1, 5)}">
+                  <td><span class="doc-id">D${d.id}</span>${escapeHtml(d.name)}</td>
+                  <td>${d.word_count.toLocaleString()}</td>
+                  <td>${d.unique_words.toLocaleString()}</td>
+                  <td>${d.unique_shingles.toLocaleString()}</td>
+                </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>`;
+
+      document.getElementById('results').classList.remove('hidden');
+      document.getElementById('uploadSection').classList.add('hidden');
+      animateMeters('pairs');
+    }
+
+    function pairCard(p, idx) {
+      const r = Math.min(idx + 1, 5);
+      return `
+        <div class="pair rise rise-${r}">
+          <div class="pair-head">
+            <div class="pair-docs">
+              <span class="rank">#${p.rank}</span>
+              <span class="doc-tag">${escapeHtml(p.doc1_name)}</span>
+              <span class="vs">vs</span>
+              <span class="doc-tag">${escapeHtml(p.doc2_name)}</span>
+            </div>
+            <div class="pair-score">
+              <span class="score-num">${p.score}%</span>
+              <span class="label-pill label-${p.label}">${p.label}</span>
+            </div>
+          </div>
+          <div class="meter"><div class="meter-fill fill-${p.label}" data-width="${p.score}%"></div></div>
+          <p class="pair-foot">${p.shared_count} shared / ${p.total_count} total unique shingles</p>
+        </div>`;
+    }
+
+    function emptyState(msg, sub) {
+      return `<div class="empty"><p>${msg}</p>${sub ? `<p class="sub">${sub}</p>` : ''}</div>`;
+    }
+
+    function animateMeters(tab) {
+      requestAnimationFrame(() => {
+        document.querySelectorAll(`#tab-${tab} .meter-fill`).forEach(bar => {
+          bar.style.width = '0%';
+          void bar.offsetWidth;
+          bar.style.width = bar.getAttribute('data-width');
+        });
+      });
+    }
+
+    // ── Tabs ────────────────────────────────────────────────────────
+    function switchTab(name) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById('tab-' + name).classList.remove('hidden');
+      document.querySelector(`[data-tab="${name}"]`).classList.add('active');
+      animateMeters(name);
+    }
+
+    // ── UI helpers ──────────────────────────────────────────────────
+    function showLoader() { document.getElementById('loader').classList.remove('hidden'); }
+    function hideLoader() { document.getElementById('loader').classList.add('hidden'); }
+    function hideResults() { document.getElementById('results').classList.add('hidden'); }
+    function showError(msg) { const b = document.getElementById('errorBox'); b.textContent = msg; b.classList.remove('hidden'); }
+    function hideError() { document.getElementById('errorBox').classList.add('hidden'); }
+    function resetUI() {
+      selectedFiles = []; renderChips(); hideResults();
+      document.getElementById('uploadSection').classList.remove('hidden'); hideError();
+    }
+
+    // ── Escaping (prevents broken markup / injection from filenames) ──
+    function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c])); }
+    function escapeAttr(s) { return String(s).replace(/'/g, "\\'").replace(/"/g, '&quot;'); }
+  </script>
+</body>
+</html>
