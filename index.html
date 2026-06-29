@@ -341,7 +341,7 @@
 
     <div id="loader" class="loader hidden">
       <div class="spinner"></div>
-      <p>Comparing documents…</p>
+      <p id="loaderText">Comparing documents…</p>
     </div>
 
     <section id="results" class="hidden">
@@ -367,9 +367,9 @@
 
   <script>
     // ── Config ──────────────────────────────────────────────────────
-    // API base URL. Defaults to the local Flask server. When deploying,
-    // set this to your deployed backend URL (e.g. "https://your-api.onrender.com").
-    const API_BASE = "http://localhost:5000";
+    // API base URL. Points at the deployed backend in production.
+    // For local development, change this to "http://localhost:5000".
+    const API_BASE = "https://docscan-api.onrender.com";
 
     // ── Theme ───────────────────────────────────────────────────────
     function toggleTheme() {
@@ -417,8 +417,17 @@
     }
 
     // ── Analysis ────────────────────────────────────────────────────
+    let wakeTimer = null;
+
     async function analyze() {
       hideError(); showLoader(); hideResults();
+      document.getElementById('loaderText').textContent = 'Comparing documents…';
+      // The free-tier backend sleeps when idle; if the request is slow,
+      // reassure the user it's waking up rather than broken.
+      wakeTimer = setTimeout(() => {
+        document.getElementById('loaderText').textContent = 'Waking up the server, this can take up to a minute…';
+      }, 4000);
+
       const formData = new FormData();
       selectedFiles.forEach(f => formData.append('files', f));
       formData.append('shingle_size', document.getElementById('shingleSlider').value);
@@ -426,12 +435,14 @@
         const res = await fetch(`${API_BASE}/api/analyze`, { method: 'POST', body: formData });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Server error');
+        clearTimeout(wakeTimer);
         hideLoader();
         renderResults(data);
       } catch (err) {
+        clearTimeout(wakeTimer);
         hideLoader();
         showError(err.message === 'Failed to fetch'
-          ? 'Could not reach the server. Make sure the backend is running.'
+          ? 'Could not reach the server. It may be waking up — please try again in a moment.'
           : (err.message || 'Something went wrong.'));
       }
     }
