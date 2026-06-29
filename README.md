@@ -2,6 +2,9 @@
 
 **DocScan** is a plagiarism-detection tool that compares a set of text documents and ranks how similar they are to each other, using **shingling** and **Jaccard similarity**. The core data structures — a hash table, a binary search tree, and merge sort — are implemented from scratch in Python rather than imported from libraries, to demonstrate the underlying algorithms.
 
+**▶ Live demo:** https://karimdayekhh.github.io/document-similarity-analyzer/
+*(The demo's backend runs on a free tier that sleeps when idle — the first analysis may take up to a minute to wake the server, then it's fast.)*
+
 It ships with both a command-line interface and a Flask-backed web dashboard.
 
 ## What it demonstrates
@@ -22,8 +25,9 @@ It ships with both a command-line interface and a Flask-backed web dashboard.
 ## Tech stack
 
 **Backend:** Python, Flask, Flask-CORS, Gunicorn
-**Frontend:** HTML, CSS, JavaScript (Tailwind), drag-and-drop upload, dark/light mode
+**Frontend:** HTML, CSS, JavaScript, drag-and-drop upload, dark/light mode
 **Core algorithms:** custom hash table, BST, merge sort
+**Deployment:** backend on Render, frontend on GitHub Pages
 
 ## Running it locally
 
@@ -32,7 +36,7 @@ It ships with both a command-line interface and a Flask-backed web dashboard.
 pip install -r requirements.txt
 python app.py
 ```
-The API runs on `http://localhost:5000`. Then open `index.html` in your browser. If you hit CORS issues, serve the frontend with `python -m http.server 8080` and visit `http://localhost:8080`.
+The API runs on `http://localhost:5000`. In `index.html`, set `API_BASE` (near the top of the `<script>`) to `http://localhost:5000`, then open `index.html` in your browser. If you hit CORS issues, serve the frontend with `python -m http.server 8080` and visit `http://localhost:8080`.
 
 Upload at least two `.txt` files and adjust the shingle size (1–10, default 3) to compare.
 
@@ -46,14 +50,14 @@ Enter the path to a folder containing `.txt` files when prompted. It prints a ra
 
 The backend is production-ready (configurable port, debug off by default, Gunicorn included).
 
-**Backend (e.g. Render, Railway):**
-1. Push this repo to GitHub and connect it to your host.
+**Backend (Render / Railway):**
+1. Connect this repo to your host.
 2. Build command: `pip install -r requirements.txt`
 3. Start command: `gunicorn app:app` (uses the included `Procfile`).
 4. The host's `PORT` environment variable is picked up automatically.
 
 **Frontend:**
-In `index.html`, set `API_BASE` (near the top of the `<script>`) to your deployed backend URL, e.g. `https://your-api.onrender.com`. Then host `index.html` on any static host (GitHub Pages, Netlify, Vercel).
+Set `API_BASE` in `index.html` to your deployed backend URL, then host `index.html` on any static host (GitHub Pages, Netlify, Vercel).
 
 ## API
 
