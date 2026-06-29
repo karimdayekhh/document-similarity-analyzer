@@ -19,7 +19,20 @@ from plagiarism_checker import (
 )
 
 app = Flask(__name__)
-CORS(app)
+
+# Restrict cross-origin requests to the known frontends.
+# Override in production by setting ALLOWED_ORIGINS to a comma-separated list.
+DEFAULT_ORIGINS = [
+    "https://karimdayekhh.github.io",
+    "http://localhost:8080",
+    "http://127.0.0.1:8080",
+]
+allowed_origins = os.environ.get("ALLOWED_ORIGINS")
+if allowed_origins:
+    origins = [o.strip() for o in allowed_origins.split(",") if o.strip()]
+else:
+    origins = DEFAULT_ORIGINS
+CORS(app, origins=origins)
 
 ALLOWED_EXTENSIONS = {"txt"}
 
